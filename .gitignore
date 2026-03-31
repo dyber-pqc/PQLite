@@ -1,0 +1,110 @@
+# PQLite .gitignore
+# Copyright (c) 2025-2026 Dyber, Inc.
+
+# =========================
+# Build artifacts
+# =========================
+build/
+out/
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+*.exe
+pqlite3
+sqlite3
+
+# =========================
+# CMake
+# =========================
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+_deps/
+*.cmake
+!CMakeLists.txt
+
+# =========================
+# Amalgamation (generated)
+# =========================
+sqlite3.c
+sqlite3.h
+pqlite3.c
+pqlite3.h
+
+# =========================
+# IDE & Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.kate-swp
+.project
+.cproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# =========================
+# Claude Code (NEVER commit)
+# =========================
+.claude/
+
+# =========================
+# Testing artifacts
+# =========================
+*.log
+*.tmp
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+test/output/
+testfixture
+testfixture.exe
+
+# =========================
+# Package artifacts
+# =========================
+*.tar.gz
+*.zip
+*.deb
+*.rpm
+*.pkg
+*.msi
+
+# =========================
+# Profiling & coverage
+# =========================
+*.gcda
+*.gcno
+*.gcov
+coverage/
+*.profraw
+*.profdata
+
+# =========================
+# liboqs submodule build
+# =========================
+third_party/liboqs/build/

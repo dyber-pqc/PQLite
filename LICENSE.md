@@ -1,6 +1,16 @@
 License Information
 ===================
 
+PQLite License
+--------------
+
+PQLite's post-quantum cryptographic additions (all files in `src/pqc/`,
+build system modifications, and documentation) are licensed under the
+**MIT License**. Copyright (c) 2025-2026 Dyber, Inc. All rights reserved.
+See the [LICENSE](LICENSE) file for the full MIT License text.
+
+PQLite is a product of Dyber, Inc.
+
 SQLite Is Public Domain
 -----------------------
 

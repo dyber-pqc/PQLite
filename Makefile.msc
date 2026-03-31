@@ -1,5 +1,6 @@
 #
-# nmake Makefile for SQLite
+# nmake Makefile for PQLite (Post-Quantum SQLite)
+# Copyright (c) 2025-2026 Dyber, Inc. All rights reserved.
 #
 ###############################################################################
 ############################## START OF OPTIONS ###############################
@@ -307,9 +308,9 @@ SQLITE3H = sqlite3.h
 #
 !IFNDEF SQLITE3DLL
 !IF $(FOR_WIN10)!=0
-SQLITE3DLL = winsqlite3.dll
+SQLITE3DLL = winpqlite3.dll
 !ELSE
-SQLITE3DLL = sqlite3.dll
+SQLITE3DLL = pqlite3.dll
 !ENDIF
 !ENDIF
 
@@ -317,9 +318,9 @@ SQLITE3DLL = sqlite3.dll
 #
 !IFNDEF SQLITE3LIB
 !IF $(FOR_WIN10)!=0
-SQLITE3LIB = winsqlite3.lib
+SQLITE3LIB = winpqlite3.lib
 !ELSE
-SQLITE3LIB = sqlite3.lib
+SQLITE3LIB = pqlite3.lib
 !ENDIF
 !ENDIF
 
@@ -329,7 +330,7 @@ SQLITE3LIB = sqlite3.lib
 !IF $(FOR_WIN10)!=0
 SQLITE3EXE = winsqlite3shell.exe
 !ELSE
-SQLITE3EXE = sqlite3.exe
+SQLITE3EXE = pqlite3.exe
 !ENDIF
 !ENDIF
 

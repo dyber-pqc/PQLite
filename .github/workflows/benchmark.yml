@@ -1,0 +1,86 @@
+# PQLite Performance Benchmarks
+# Copyright (c) 2025-2026 Dyber, Inc.
+
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libssl-dev
+          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
+          cd /tmp/liboqs && mkdir build && cd build
+          cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON ..
+          ninja && sudo ninja install && sudo ldconfig
+
+      - name: Build PQLite (PQC ON)
+        run: |
+          mkdir build-pqc && cd build-pqc
+          cmake .. -GNinja -DPQLITE_PQC=ON -DCMAKE_BUILD_TYPE=Release
+          ninja
+
+      - name: Build PQLite (PQC OFF — vanilla baseline)
+        run: |
+          mkdir build-vanilla && cd build-vanilla
+          cmake .. -GNinja -DPQLITE_PQC=OFF -DCMAKE_BUILD_TYPE=Release
+          ninja
+
+      - name: Run benchmarks
+        run: |
+          echo "============================================"
+          echo "  PQLite Performance Benchmark Suite"
+          echo "  Copyright (c) 2025-2026 Dyber, Inc."
+          echo "============================================"
+          echo ""
+
+          # Benchmark 1: INSERT performance
+          echo "--- INSERT 100,000 rows ---"
+          echo "Vanilla SQLite:"
+          time echo "
+            CREATE TABLE bench(id INTEGER PRIMARY KEY, data TEXT, value REAL);
+            BEGIN;
+            $(for i in $(seq 1 100000); do echo "INSERT INTO bench VALUES($i, 'benchmark data row $i', $i.5);"; done)
+            COMMIT;
+          " | ./build-vanilla/pqlite3 /tmp/bench_vanilla.db 2>&1
+
+          echo "PQLite (encrypted):"
+          time echo "
+            CREATE TABLE bench(id INTEGER PRIMARY KEY, data TEXT, value REAL);
+            BEGIN;
+            $(for i in $(seq 1 100000); do echo "INSERT INTO bench VALUES($i, 'benchmark data row $i', $i.5);"; done)
+            COMMIT;
+          " | ./build-pqc/pqlite3 /tmp/bench_pqc.db 2>&1
+
+          # Benchmark 2: SELECT performance
+          echo ""
+          echo "--- SELECT all rows ---"
+          echo "Vanilla:"
+          time echo "SELECT COUNT(*) FROM bench; SELECT * FROM bench WHERE id > 50000;" | ./build-vanilla/pqlite3 /tmp/bench_vanilla.db > /dev/null
+
+          echo "PQLite:"
+          time echo "SELECT COUNT(*) FROM bench; SELECT * FROM bench WHERE id > 50000;" | ./build-pqc/pqlite3 /tmp/bench_pqc.db > /dev/null
+
+          # Benchmark 3: Database sizes
+          echo ""
+          echo "--- Database sizes ---"
+          ls -la /tmp/bench_vanilla.db /tmp/bench_pqc.db
+
+          echo ""
+          echo "Benchmark complete."
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: /tmp/bench_*.db

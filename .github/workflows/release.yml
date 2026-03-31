@@ -1,0 +1,131 @@
+# PQLite Release Pipeline
+# Copyright (c) 2025-2026 Dyber, Inc.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact: pqlite3-linux-x86_64
+            ext: ""
+          - os: macos-14
+            artifact: pqlite3-macos-arm64
+            ext: ""
+          - os: windows-2022
+            artifact: pqlite3-windows-x86_64
+            ext: ".exe"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libssl-dev
+          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
+          cd /tmp/liboqs && mkdir build && cd build
+          cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON ..
+          ninja && sudo ninja install && sudo ldconfig
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake ninja openssl@3
+          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
+          cd /tmp/liboqs && mkdir build && cd build
+          cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON ..
+          ninja && sudo ninja install
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install cmake ninja openssl -y
+          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git C:\liboqs
+          cd C:\liboqs
+          mkdir build && cd build
+          cmake -GNinja -DCMAKE_INSTALL_PREFIX=C:\liboqs\install -DBUILD_SHARED_LIBS=ON ..
+          ninja && ninja install
+
+      - name: Build PQLite
+        run: |
+          mkdir build && cd build
+          cmake .. -GNinja -DPQLITE_PQC=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build .
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp build/pqlite3${{ matrix.ext }} dist/${{ matrix.artifact }}${{ matrix.ext }}
+          cp LICENSE dist/
+          cp README.md dist/
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS.txt || shasum -a 256 * > SHA256SUMS.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/
+
+  create-release:
+    name: Create GitHub Release
+    needs: build-release
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PQLite ${{ github.ref_name }}
+          body: |
+            ## PQLite ${{ github.ref_name }}
+
+            **Post-Quantum SQLite** — Quantum-resistant database encryption.
+
+            A product of [Dyber, Inc.](https://github.com/dyber-pqc)
+
+            ### Features
+            - ML-KEM-768 key encapsulation (FIPS 203)
+            - AES-256-GCM page encryption
+            - ML-DSA-65 digital signatures (FIPS 204)
+            - Column-level encryption
+            - Cryptographic audit logging
+            - Dynamic data masking
+            - Row-level security
+            - FIPS 140-3 compliance mode
+
+            ### Downloads
+            See assets below for pre-built binaries.
+            Verify checksums with `sha256sum -c SHA256SUMS.txt`.
+
+            ### Building from source
+            ```bash
+            cmake -B build -DPQLITE_PQC=ON
+            cmake --build build
+            ```
+          files: |
+            release-artifacts/**/*
+          draft: false
+          prerelease: false

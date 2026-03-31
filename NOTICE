@@ -1,0 +1,23 @@
+PQLite - Post-Quantum SQLite
+Copyright (c) 2025-2026 Dyber, Inc. All rights reserved.
+
+PQLite is a product of Dyber, Inc.
+https://github.com/dyber-pqc
+
+This product includes software developed by:
+
+  - SQLite (https://sqlite.org/) — Public domain database engine
+    The author disclaims copyright to the original SQLite source code.
+    In place of a legal notice, here is a blessing:
+      May you do good and not evil.
+      May you find forgiveness for yourself and forgive others.
+      May you share freely, never taking more than you give.
+
+  - liboqs (https://openquantumsafe.org/) — Open Quantum Safe library
+    Licensed under the MIT License.
+
+  - OpenSSL (https://www.openssl.org/) — Cryptographic toolkit
+    Licensed under the Apache License 2.0.
+
+PQLite's post-quantum cryptographic additions are licensed under the
+MIT License. See LICENSE for details.

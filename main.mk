@@ -1,7 +1,9 @@
 #!/do/not/make
 # ^^^^ help out editors which guess this file's type.
 ###############################################################################
-# This is the main makefile for sqlite. It expects to be included from
+# This is the main makefile for PQLite (Post-Quantum SQLite).
+# Copyright (c) 2025-2026 Dyber, Inc. All rights reserved.
+# It expects to be included from
 # a higher-level makefile which configures any dynamic state needed by
 # this one (as documented below).
 #
@@ -2171,6 +2173,16 @@ sqlite3$(T.exe):	shell.c sqlite3.c
 sqlite3$(T.exe)-1:
 sqlite3$(T.exe)-0: sqlite3$(T.exe)
 all: sqlite3$(T.exe)-$(HAVE_WASI_SDK)
+
+#
+# PQLite alias: build pqlite3 as a copy of the sqlite3 shell binary
+# so users can invoke the CLI as "pqlite3" per PQLite branding.
+# Copyright (c) 2025-2026 Dyber, Inc.
+#
+pqlite3$(T.exe): sqlite3$(T.exe)
+	cp sqlite3$(T.exe) pqlite3$(T.exe)
+pqlite3: pqlite3$(T.exe)
+.PHONY: pqlite3
 
 # The "sqlite3d" CLI is build using separate source files.  This
 # is useful during development and debugging.

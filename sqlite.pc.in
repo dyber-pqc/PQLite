@@ -1,13 +1,15 @@
 # Package Information for pkg-config
+# PQLite - Post-Quantum SQLite
+# Copyright (c) 2025-2026 Dyber, Inc.
 
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: SQLite
-Description: SQL database engine
+Name: PQLite
+Description: Post-Quantum SQLite - Quantum-resistant database encryption
 Version: @RELEASE@
-Libs: -L${libdir} -lsqlite
+Libs: -L${libdir} -lpqlite
 Libs.private: @LIBS@
 Cflags: -I${includedir}

@@ -1,8 +1,11 @@
 #!/do/not/tclsh
 # ^^^ help out editors which guess this file's content type.
 #
-# This is the main autosetup-compatible configure script for the
-# SQLite project.
+# This is the main autosetup-compatible configure script for
+# PQLite (Post-Quantum SQLite).
+# Copyright (c) 2025-2026 Dyber, Inc. All rights reserved.
+#
+# Based on the original SQLite project configure script.
 #
 # This script and all of its dependencies must be kept compatible with
 # JimTCL, a copy of which is included in this source tree as

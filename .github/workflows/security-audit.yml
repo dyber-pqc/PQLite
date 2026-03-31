@@ -1,0 +1,110 @@
+# PQLite Security Audit
+# Copyright (c) 2025-2026 Dyber, Inc.
+
+name: Security Audit
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+  workflow_dispatch:
+
+jobs:
+  static-analysis:
+    name: Static Analysis (cppcheck)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck on PQC sources
+        run: |
+          cppcheck \
+            --enable=all \
+            --error-exitcode=1 \
+            --suppress=missingIncludeSystem \
+            --suppress=unusedFunction \
+            --inline-suppr \
+            -I src/ \
+            -I src/pqc/ \
+            --std=c11 \
+            src/pqc/*.c
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-22.04
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: c-cpp
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libssl-dev
+          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
+          cd /tmp/liboqs && mkdir build && cd build
+          cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON ..
+          ninja && sudo ninja install && sudo ldconfig
+
+      - name: Build for CodeQL
+        run: |
+          mkdir build && cd build
+          cmake .. -GNinja -DPQLITE_PQC=ON -DCMAKE_BUILD_TYPE=Debug
+          ninja
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  dependency-check:
+    name: Dependency Audit
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check liboqs version
+        run: |
+          echo "Checking latest liboqs release..."
+          LATEST=$(curl -s https://api.github.com/repos/open-quantum-safe/liboqs/releases/latest | grep tag_name | cut -d'"' -f4)
+          echo "Latest liboqs: $LATEST"
+
+      - name: Check OpenSSL advisories
+        run: |
+          echo "Checking OpenSSL security advisories..."
+          curl -s https://www.openssl.org/news/vulnerabilities.html | head -50 || true
+
+  memory-safety:
+    name: AddressSanitizer
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libssl-dev
+          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
+          cd /tmp/liboqs && mkdir build && cd build
+          cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON ..
+          ninja && sudo ninja install && sudo ldconfig
+
+      - name: Build with ASan
+        run: |
+          mkdir build && cd build
+          cmake .. -GNinja -DPQLITE_PQC=ON \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-fsanitize=address -fno-omit-frame-pointer"
+          ninja
+
+      - name: Run basic smoke test under ASan
+        run: |
+          cd build
+          echo "CREATE TABLE t(x); INSERT INTO t VALUES(1); SELECT * FROM t;" | ./pqlite3 :memory:

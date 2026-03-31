@@ -1,5 +1,7 @@
 # This file contains suggested magic(5) text for the unix file(1)
-# utility for recognizing SQLite3 databases.
+# utility for recognizing PQLite / SQLite3 databases.
+# PQLite - Post-Quantum SQLite
+# Copyright (c) 2025-2026 Dyber, Inc.
 #
 # When SQLite is used as an application file format, it is desirable to
 # have file(1) recognize the database file as being with the specific

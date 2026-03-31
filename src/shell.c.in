@@ -11977,7 +11977,7 @@ static int do_meta_command(const char *zLine, ShellState *p){
 
   if( c=='v' && cli_strncmp(azArg[0], "version", n)==0 ){
     char *zPtrSz = sizeof(void*)==8 ? "64-bit" : "32-bit";
-    cli_printf(p->out, "SQLite %s %s\n" /*extra-version-info*/,
+    cli_printf(p->out, "PQLite 1.0.0 (based on SQLite %s) %s\n" /*extra-version-info*/,
           sqlite3_libversion(), sqlite3_sourceid());
 #if SQLITE_HAVE_ZLIB
     cli_printf(p->out, "zlib version %s\n", zlibVersion());
@@ -12776,7 +12776,7 @@ static const char zOptions[] =
   "   -table               set output mode to 'table'\n"
   "   -tabs                set output mode to 'tabs'\n"
   "   -unsafe-testing      allow unsafe commands and modes for testing\n"
-  "   -version             show SQLite version\n"
+  "   -version             show PQLite version\n"
   "   -vfs NAME            use NAME as the default VFS\n"
   "   -vfstrace            enable tracing of all VFS calls\n"
 #ifdef SQLITE_HAVE_ZLIB
@@ -13551,7 +13551,7 @@ int SQLITE_CDECL main(int argc, char **argv){
       char *zHome;
       char *zHistory;
       cli_printf(stdout,
-            "SQLite version %s %.19s\n" /*extra-version-info*/
+            "PQLite 1.0.0 (based on SQLite %s) %.19s\n" /*extra-version-info*/
             "Enter \".help\" for usage hints.\n",
             sqlite3_libversion(), sqlite3_sourceid());
       if( warnInmemoryDb ){

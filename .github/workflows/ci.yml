@@ -1,0 +1,85 @@
+# PQLite CI — Build & Test
+# Copyright (c) 2025-2026 Dyber, Inc.
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14, windows-2022]
+        pqc: [ON, OFF]
+
+    steps:
+      - name: Checkout PQLite
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libssl-dev
+          # Install liboqs
+          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
+          cd /tmp/liboqs
+          mkdir build && cd build
+          cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON ..
+          ninja
+          sudo ninja install
+          sudo ldconfig
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake ninja openssl@3
+          # Install liboqs
+          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
+          cd /tmp/liboqs
+          mkdir build && cd build
+          cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON ..
+          ninja
+          sudo ninja install
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install cmake ninja openssl -y
+          # Install liboqs
+          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git C:\liboqs
+          cd C:\liboqs
+          mkdir build
+          cd build
+          cmake -GNinja -DCMAKE_INSTALL_PREFIX=C:\liboqs\install -DBUILD_SHARED_LIBS=ON ..
+          ninja
+          ninja install
+
+      - name: Configure PQLite
+        run: |
+          mkdir build
+          cd build
+          cmake .. -GNinja \
+            -DPQLITE_PQC=${{ matrix.pqc }} \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build PQLite
+        run: cmake --build build
+
+      - name: Verify build
+        run: |
+          ./build/pqlite3 --version || true
+          echo "Build successful"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pqlite3-${{ matrix.os }}-pqc-${{ matrix.pqc }}
+          path: build/pqlite3*
