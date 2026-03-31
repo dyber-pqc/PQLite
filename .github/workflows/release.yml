@@ -12,20 +12,18 @@ permissions:
 
 jobs:
   build-release:
-    name: Build (${{ matrix.os }})
+    name: Build (${{ matrix.artifact }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-22.04
             artifact: pqlite3-linux-x86_64
-            ext: ""
           - os: macos-14
             artifact: pqlite3-macos-arm64
-            ext: ""
           - os: windows-2022
             artifact: pqlite3-windows-x86_64
-            ext: ".exe"
 
     steps:
       - uses: actions/checkout@v4
@@ -34,48 +32,81 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libssl-dev
-          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
-          cd /tmp/liboqs && mkdir build && cd build
-          cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON ..
-          ninja && sudo ninja install && sudo ldconfig
+          sudo apt-get install -y cmake ninja-build libssl-dev pkg-config
+          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
+          cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
+            -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON \
+            -DOQS_BUILD_ONLY_LIB=ON
+          ninja -C /tmp/liboqs/build
+          sudo ninja -C /tmp/liboqs/build install
+          sudo ldconfig
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install cmake ninja openssl@3
-          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
-          cd /tmp/liboqs && mkdir build && cd build
-          cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON ..
-          ninja && sudo ninja install
+          brew install cmake ninja openssl@3 pkg-config
+          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
+          cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
+            -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON \
+            -DOQS_BUILD_ONLY_LIB=ON
+          ninja -C /tmp/liboqs/build
+          sudo ninja -C /tmp/liboqs/build install
 
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
+        shell: bash
         run: |
-          choco install cmake ninja openssl -y
-          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git C:\liboqs
-          cd C:\liboqs
-          mkdir build && cd build
-          cmake -GNinja -DCMAKE_INSTALL_PREFIX=C:\liboqs\install -DBUILD_SHARED_LIBS=ON ..
-          ninja && ninja install
+          choco install openssl -y --no-progress
+          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git C:/liboqs
+          cmake -S C:/liboqs -B C:/liboqs/build \
+            -DCMAKE_INSTALL_PREFIX=C:/liboqs/install \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DOQS_BUILD_ONLY_LIB=ON
+          cmake --build C:/liboqs/build --config Release
+          cmake --install C:/liboqs/build --config Release
 
-      - name: Build PQLite
+      - name: Build PQLite (Unix)
+        if: runner.os != 'Windows'
         run: |
-          mkdir build && cd build
-          cmake .. -GNinja -DPQLITE_PQC=ON -DCMAKE_BUILD_TYPE=Release
-          cmake --build .
+          cmake -S . -B build -GNinja \
+            -DPQLITE_PQC=ON -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
 
-      - name: Package
+      - name: Build PQLite (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cmake -S . -B build \
+            -DPQLITE_PQC=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="C:/liboqs/install"
+          cmake --build build --config Release
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
         run: |
           mkdir -p dist
-          cp build/pqlite3${{ matrix.ext }} dist/${{ matrix.artifact }}${{ matrix.ext }}
-          cp LICENSE dist/
-          cp README.md dist/
+          cp build/pqlite3 dist/${{ matrix.artifact }}
+          cp LICENSE README.md dist/
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp build/Release/pqlite3.exe dist/${{ matrix.artifact }}.exe || \
+          cp build/pqlite3.exe dist/${{ matrix.artifact }}.exe
+          cp LICENSE README.md dist/
 
       - name: Generate checksums
+        shell: bash
         run: |
           cd dist
-          sha256sum * > SHA256SUMS.txt || shasum -a 256 * > SHA256SUMS.txt
+          if command -v sha256sum &>/dev/null; then
+            sha256sum $(ls | grep -v SHA256) > SHA256SUMS.txt
+          else
+            shasum -a 256 $(ls | grep -v SHA256) > SHA256SUMS.txt
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -95,6 +126,12 @@ jobs:
         with:
           path: release-artifacts/
 
+      - name: Flatten artifacts
+        run: |
+          mkdir -p final
+          find release-artifacts -type f \( -name "pqlite3*" -o -name "SHA256*" \) -exec cp {} final/ \;
+          ls -la final/
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -103,29 +140,20 @@ jobs:
             ## PQLite ${{ github.ref_name }}
 
             **Post-Quantum SQLite** — Quantum-resistant database encryption.
-
             A product of [Dyber, Inc.](https://github.com/dyber-pqc)
 
-            ### Features
+            ### Highlights
             - ML-KEM-768 key encapsulation (FIPS 203)
             - AES-256-GCM page encryption
             - ML-DSA-65 digital signatures (FIPS 204)
-            - Column-level encryption
-            - Cryptographic audit logging
-            - Dynamic data masking
-            - Row-level security
-            - FIPS 140-3 compliance mode
+            - Column-level encryption, audit logging, data masking
+            - Row-level security, FIPS 140-3 mode, encrypted backups
+            - Based on SQLite 3.53.0
 
             ### Downloads
-            See assets below for pre-built binaries.
-            Verify checksums with `sha256sum -c SHA256SUMS.txt`.
+            See assets below. Verify with `sha256sum -c SHA256SUMS.txt`.
 
-            ### Building from source
-            ```bash
-            cmake -B build -DPQLITE_PQC=ON
-            cmake --build build
-            ```
-          files: |
-            release-artifacts/**/*
+            Copyright (c) 2025-2026 Dyber, Inc.
+          files: final/*
           draft: false
           prerelease: false

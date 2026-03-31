@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    name: Build (${{ matrix.os }})
+    name: Build (${{ matrix.os }}, PQC=${{ matrix.pqc }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -27,59 +27,75 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libssl-dev
-          # Install liboqs
-          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
-          cd /tmp/liboqs
-          mkdir build && cd build
-          cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON ..
-          ninja
-          sudo ninja install
+          sudo apt-get install -y cmake ninja-build libssl-dev pkg-config
+          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
+          cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
+            -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON \
+            -DOQS_BUILD_ONLY_LIB=ON
+          ninja -C /tmp/liboqs/build
+          sudo ninja -C /tmp/liboqs/build install
           sudo ldconfig
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install cmake ninja openssl@3
-          # Install liboqs
-          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
-          cd /tmp/liboqs
-          mkdir build && cd build
-          cmake -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON ..
-          ninja
-          sudo ninja install
+          brew install cmake ninja openssl@3 pkg-config
+          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
+          cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
+            -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON \
+            -DOQS_BUILD_ONLY_LIB=ON
+          ninja -C /tmp/liboqs/build
+          sudo ninja -C /tmp/liboqs/build install
 
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
+        shell: bash
         run: |
-          choco install cmake ninja openssl -y
-          # Install liboqs
-          git clone --depth 1 https://github.com/open-quantum-safe/liboqs.git C:\liboqs
-          cd C:\liboqs
-          mkdir build
-          cd build
-          cmake -GNinja -DCMAKE_INSTALL_PREFIX=C:\liboqs\install -DBUILD_SHARED_LIBS=ON ..
-          ninja
-          ninja install
+          choco install openssl -y --no-progress
+          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git C:/liboqs
+          cmake -S C:/liboqs -B C:/liboqs/build \
+            -DCMAKE_INSTALL_PREFIX=C:/liboqs/install \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DOQS_BUILD_ONLY_LIB=ON
+          cmake --build C:/liboqs/build --config Release
+          cmake --install C:/liboqs/build --config Release
 
-      - name: Configure PQLite
+      - name: Configure PQLite (Unix)
+        if: runner.os != 'Windows'
         run: |
-          mkdir build
-          cd build
-          cmake .. -GNinja \
+          cmake -S . -B build -GNinja \
             -DPQLITE_PQC=${{ matrix.pqc }} \
             -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build PQLite
-        run: cmake --build build
-
-      - name: Verify build
+      - name: Configure PQLite (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
         run: |
-          ./build/pqlite3 --version || true
-          echo "Build successful"
+          cmake -S . -B build \
+            -DPQLITE_PQC=${{ matrix.pqc }} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="C:/liboqs/install"
+
+      - name: Build PQLite
+        run: cmake --build build --config Release
+
+      - name: Smoke test (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          echo "SELECT 'PQLite works!';" | ./build/pqlite3 :memory:
+
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          echo "SELECT 'PQLite works!';" | ./build/Release/pqlite3.exe :memory: || \
+          echo "SELECT 'PQLite works!';" | ./build/pqlite3.exe :memory: || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: pqlite3-${{ matrix.os }}-pqc-${{ matrix.pqc }}
-          path: build/pqlite3*
+          path: |
+            build/pqlite3*
+            build/Release/pqlite3*
+          if-no-files-found: ignore
