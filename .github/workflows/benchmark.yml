@@ -18,7 +18,8 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libssl-dev pkg-config
+          sudo apt-get install -y build-essential cmake ninja-build libssl-dev \
+            pkg-config tcl tclsh
           git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
           cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
             -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON \
@@ -26,6 +27,12 @@ jobs:
           ninja -C /tmp/liboqs/build
           sudo ninja -C /tmp/liboqs/build install
           sudo ldconfig
+
+      - name: Generate SQLite amalgamation
+        run: |
+          ./configure
+          make sqlite3.c
+          make shell.c
 
       - name: Build PQLite (PQC ON)
         run: |
@@ -57,7 +64,6 @@ jobs:
           done >> /tmp/bench_insert.sql
           echo "COMMIT;" >> /tmp/bench_insert.sql
 
-          # Benchmark 1: INSERT performance
           echo "--- INSERT 50,000 rows ---"
           echo "CREATE TABLE bench(id INTEGER PRIMARY KEY, data TEXT, value REAL);" | $VANILLA /tmp/bench_vanilla.db
           echo "CREATE TABLE bench(id INTEGER PRIMARY KEY, data TEXT, value REAL);" | $PQC /tmp/bench_pqc.db
@@ -68,7 +74,6 @@ jobs:
           echo -n "PQLite:   "
           time $PQC /tmp/bench_pqc.db < /tmp/bench_insert.sql 2>&1
 
-          # Benchmark 2: SELECT performance
           echo ""
           echo "--- SELECT (count + range scan) ---"
           SELECT_SQL="SELECT COUNT(*) FROM bench; SELECT * FROM bench WHERE id BETWEEN 10000 AND 40000;"
@@ -79,7 +84,6 @@ jobs:
           echo -n "PQLite:   "
           time echo "$SELECT_SQL" | $PQC /tmp/bench_pqc.db > /dev/null 2>&1
 
-          # Database sizes
           echo ""
           echo "--- Database sizes ---"
           ls -lh /tmp/bench_vanilla.db /tmp/bench_pqc.db

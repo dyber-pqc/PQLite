@@ -22,91 +22,49 @@ jobs:
             artifact: pqlite3-linux-x86_64
           - os: macos-14
             artifact: pqlite3-macos-arm64
-          - os: windows-2022
-            artifact: pqlite3-windows-x86_64
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies (Ubuntu)
+      - name: Install build tools
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libssl-dev pkg-config
-          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
-          cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
-            -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON \
-            -DOQS_BUILD_ONLY_LIB=ON
-          ninja -C /tmp/liboqs/build
-          sudo ninja -C /tmp/liboqs/build install
-          sudo ldconfig
+          sudo apt-get install -y build-essential cmake ninja-build libssl-dev \
+            pkg-config tcl tclsh
 
-      - name: Install dependencies (macOS)
+      - name: Install build tools (macOS)
         if: runner.os == 'macOS'
+        run: brew install cmake ninja openssl@3 pkg-config tcl-tk
+
+      - name: Install liboqs
         run: |
-          brew install cmake ninja openssl@3 pkg-config
           git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
           cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
             -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON \
             -DOQS_BUILD_ONLY_LIB=ON
           ninja -C /tmp/liboqs/build
           sudo ninja -C /tmp/liboqs/build install
+          if [ "$(uname)" = "Linux" ]; then sudo ldconfig; fi
 
-      - name: Install dependencies (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
+      - name: Generate SQLite amalgamation
         run: |
-          choco install openssl -y --no-progress
-          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git C:/liboqs
-          cmake -S C:/liboqs -B C:/liboqs/build \
-            -DCMAKE_INSTALL_PREFIX=C:/liboqs/install \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DOQS_BUILD_ONLY_LIB=ON
-          cmake --build C:/liboqs/build --config Release
-          cmake --install C:/liboqs/build --config Release
+          ./configure
+          make sqlite3.c
+          make shell.c
 
-      - name: Build PQLite (Unix)
-        if: runner.os != 'Windows'
+      - name: Build PQLite
         run: |
           cmake -S . -B build -GNinja \
             -DPQLITE_PQC=ON -DCMAKE_BUILD_TYPE=Release
           cmake --build build
 
-      - name: Build PQLite (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          cmake -S . -B build \
-            -DPQLITE_PQC=ON \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="C:/liboqs/install"
-          cmake --build build --config Release
-
-      - name: Package (Unix)
-        if: runner.os != 'Windows'
+      - name: Package
         run: |
           mkdir -p dist
           cp build/pqlite3 dist/${{ matrix.artifact }}
           cp LICENSE README.md dist/
-
-      - name: Package (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          mkdir -p dist
-          cp build/Release/pqlite3.exe dist/${{ matrix.artifact }}.exe || \
-          cp build/pqlite3.exe dist/${{ matrix.artifact }}.exe
-          cp LICENSE README.md dist/
-
-      - name: Generate checksums
-        shell: bash
-        run: |
-          cd dist
-          if command -v sha256sum &>/dev/null; then
-            sha256sum $(ls | grep -v SHA256) > SHA256SUMS.txt
-          else
-            shasum -a 256 $(ls | grep -v SHA256) > SHA256SUMS.txt
-          fi
+          cd dist && shasum -a 256 ${{ matrix.artifact }} > ${{ matrix.artifact }}.sha256
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -129,7 +87,7 @@ jobs:
       - name: Flatten artifacts
         run: |
           mkdir -p final
-          find release-artifacts -type f \( -name "pqlite3*" -o -name "SHA256*" \) -exec cp {} final/ \;
+          find release-artifacts -type f \( -name "pqlite3*" -o -name "*.sha256" \) -exec cp {} final/ \;
           ls -la final/
 
       - name: Create Release
@@ -151,7 +109,7 @@ jobs:
             - Based on SQLite 3.53.0
 
             ### Downloads
-            See assets below. Verify with `sha256sum -c SHA256SUMS.txt`.
+            Verify checksums: `shasum -a 256 -c pqlite3-*.sha256`
 
             Copyright (c) 2025-2026 Dyber, Inc.
           files: final/*

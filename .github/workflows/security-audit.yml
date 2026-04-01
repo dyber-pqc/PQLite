@@ -7,7 +7,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+    - cron: '0 6 * * 1'
   workflow_dispatch:
 
 jobs:
@@ -51,7 +51,8 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libssl-dev pkg-config
+          sudo apt-get install -y build-essential cmake ninja-build libssl-dev \
+            pkg-config tcl tclsh
           git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
           cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
             -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON \
@@ -59,6 +60,12 @@ jobs:
           ninja -C /tmp/liboqs/build
           sudo ninja -C /tmp/liboqs/build install
           sudo ldconfig
+
+      - name: Generate SQLite amalgamation
+        run: |
+          ./configure
+          make sqlite3.c
+          make shell.c
 
       - name: Build with ASan
         run: |

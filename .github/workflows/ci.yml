@@ -16,86 +16,60 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14, windows-2022]
+        os: [ubuntu-22.04, macos-14]
         pqc: [ON, OFF]
 
     steps:
       - name: Checkout PQLite
         uses: actions/checkout@v4
 
-      - name: Install dependencies (Ubuntu)
+      - name: Install build tools
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libssl-dev pkg-config
-          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
-          cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
-            -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON \
-            -DOQS_BUILD_ONLY_LIB=ON
-          ninja -C /tmp/liboqs/build
-          sudo ninja -C /tmp/liboqs/build install
-          sudo ldconfig
+          sudo apt-get install -y build-essential cmake ninja-build libssl-dev \
+            pkg-config tcl tclsh
 
-      - name: Install dependencies (macOS)
+      - name: Install build tools (macOS)
         if: runner.os == 'macOS'
+        run: brew install cmake ninja openssl@3 pkg-config tcl-tk
+
+      - name: Install liboqs
+        if: matrix.pqc == 'ON'
         run: |
-          brew install cmake ninja openssl@3 pkg-config
           git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
           cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
             -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON \
             -DOQS_BUILD_ONLY_LIB=ON
           ninja -C /tmp/liboqs/build
           sudo ninja -C /tmp/liboqs/build install
+          if [ "$(uname)" = "Linux" ]; then sudo ldconfig; fi
 
-      - name: Install dependencies (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
+      - name: Generate SQLite amalgamation
         run: |
-          choco install openssl -y --no-progress
-          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git C:/liboqs
-          cmake -S C:/liboqs -B C:/liboqs/build \
-            -DCMAKE_INSTALL_PREFIX=C:/liboqs/install \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DOQS_BUILD_ONLY_LIB=ON
-          cmake --build C:/liboqs/build --config Release
-          cmake --install C:/liboqs/build --config Release
+          # Use SQLite's own build system to produce sqlite3.c + sqlite3.h + shell.c
+          ./configure
+          make sqlite3.c
+          make shell.c
+          ls -la sqlite3.c sqlite3.h shell.c
 
-      - name: Configure PQLite (Unix)
-        if: runner.os != 'Windows'
+      - name: Configure PQLite
         run: |
           cmake -S . -B build -GNinja \
             -DPQLITE_PQC=${{ matrix.pqc }} \
             -DCMAKE_BUILD_TYPE=Release
 
-      - name: Configure PQLite (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          cmake -S . -B build \
-            -DPQLITE_PQC=${{ matrix.pqc }} \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="C:/liboqs/install"
-
       - name: Build PQLite
-        run: cmake --build build --config Release
+        run: cmake --build build
 
-      - name: Smoke test (Unix)
-        if: runner.os != 'Windows'
+      - name: Smoke test
         run: |
           echo "SELECT 'PQLite works!';" | ./build/pqlite3 :memory:
-
-      - name: Smoke test (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          echo "SELECT 'PQLite works!';" | ./build/Release/pqlite3.exe :memory: || \
-          echo "SELECT 'PQLite works!';" | ./build/pqlite3.exe :memory: || true
+          ./build/pqlite3 :memory: ".version"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: pqlite3-${{ matrix.os }}-pqc-${{ matrix.pqc }}
-          path: |
-            build/pqlite3*
-            build/Release/pqlite3*
+          path: build/pqlite3
           if-no-files-found: ignore
