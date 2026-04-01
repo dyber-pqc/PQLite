@@ -193,6 +193,23 @@ Write Path:                          Read Path:
 
 ---
 
+## Language Bindings
+
+PQLite provides official bindings for all major languages:
+
+| Language | Package | Install |
+|----------|---------|---------|
+| **Python** | `pqlite3` | `pip install pqlite3` |
+| **Rust** | `pqlite` | `cargo add pqlite` |
+| **Node.js** | `pqlite3` | `npm install pqlite3` |
+| **Go** | `pqlite` | `go get github.com/dyber-pqc/PQLite/bindings/go` |
+| **Java** | `io.dyber.pqlite` | Maven/Gradle |
+| **C#/.NET** | `PQLite` | NuGet |
+
+See [`bindings/`](bindings/) for full documentation and examples.
+
+---
+
 ## Building
 
 ### Prerequisites

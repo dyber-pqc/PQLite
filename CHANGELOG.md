@@ -2,6 +2,22 @@
 
 All notable changes to PQLite will be documented in this file.
 
+## [1.2.0] - 2026-04-01
+
+### Added — Language Bindings
+- **Python** (`bindings/python/`): Drop-in replacement for `sqlite3` module
+  with `pqc_key()`, `pqc_version()`, `is_encrypted` methods. PyPI: `pqlite3`
+- **Rust** (`bindings/rust/`): `libpqlite3-sys` FFI crate + safe `pqlite`
+  wrapper with `Connection::open()`, `pqc_key()`. crates.io: `pqlite`
+- **Node.js** (`bindings/node/`): Extends `better-sqlite3` with `pqcKey()`,
+  `pqcVersion()`, `algorithmInfo()`. npm: `pqlite3`
+- **Go** (`bindings/go/`): CGo wrapper with `Open()`, `PQCKey()`,
+  `PQCVersion()`. `go get github.com/dyber-pqc/PQLite/bindings/go`
+- **Java** (`bindings/java/`): JDBC-compatible `PQLiteConnection` class
+  with `pqcKey()`, `pqcVersion()`, `algorithmInfo()`. Maven: `io.dyber.pqlite`
+- **C#/.NET** (`bindings/dotnet/`): P/Invoke wrapper `PQLiteConnection`
+  with `PqcKey()`, `PqcVersion()`. NuGet: `PQLite`
+
 ## [1.1.0] - 2026-04-01
 
 ### Added — Full Encryption Pipeline

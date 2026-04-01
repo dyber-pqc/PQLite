@@ -14,8 +14,11 @@ out/
 *.a
 *.lib
 *.exe
-pqlite3
-sqlite3
+# Built binaries (but not directories/packages named pqlite3)
+/pqlite3
+/sqlite3
+build/pqlite3
+build/sqlite3
 
 # =========================
 # CMake

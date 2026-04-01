@@ -1,0 +1,25 @@
+{
+  "name": "pqlite3",
+  "version": "1.1.0",
+  "description": "Post-Quantum SQLite for Node.js — Quantum-resistant database encryption",
+  "main": "lib/index.js",
+  "scripts": {
+    "install": "node-gyp rebuild",
+    "test": "node test/basic.js"
+  },
+  "keywords": ["sqlite", "pqc", "post-quantum", "encryption", "database", "kyber", "dilithium"],
+  "author": "Dyber, Inc. <engineering@dyber.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dyber-pqc/PQLite.git",
+    "directory": "bindings/node"
+  },
+  "homepage": "https://github.com/dyber-pqc/PQLite",
+  "dependencies": {
+    "better-sqlite3": "^11.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
