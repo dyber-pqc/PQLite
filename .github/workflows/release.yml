@@ -49,7 +49,9 @@ jobs:
 
       - name: Generate SQLite amalgamation
         run: |
-          chmod +x configure
+          chmod +x configure autosetup/autosetup-find-tclsh autosetup/autosetup \
+            autosetup/autosetup-test-tclsh autosetup/autosetup-config.guess \
+            autosetup/autosetup-config.sub 2>/dev/null || true
           ./configure
           make sqlite3.c
           make shell.c
