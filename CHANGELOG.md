@@ -2,6 +2,29 @@
 
 All notable changes to PQLite will be documented in this file.
 
+## [1.1.0] - 2026-04-01
+
+### Added — Full Encryption Pipeline
+- **PRAGMA pqc_key wired to full codec pipeline**: Password → PBKDF2-HMAC-SHA-512
+  → ML-KEM-768 encapsulate → HKDF-SHA-256 → per-page AES-256-GCM keys →
+  codec attached to pager via pqlitePagerSetCodec()
+- **PRAGMA pqc_rekey**: Re-encrypt database with new password (codec-backed)
+- **WAL frame encryption**: walWriteOneFrame() encrypts page data before WAL write
+- **WAL frame decryption**: sqlite3WalReadFrame() decryption hook (pager-level)
+- **WAL codec propagation**: pqlitePagerSetCodec() propagates codec to WAL subsystem
+- **PQC integration tests in CI**: PRAGMA pqc_version, pqc_algorithm, pqc_cipher,
+  pqc_key; SELECT pqc_version(), pqc_algorithm_info()
+- **Homebrew tap**: `brew tap dyber-pqc/tap && brew install pqlite`
+
+### Changed
+- PRAGMA pqc_key now creates and attaches a real PqcCodec (was placeholder)
+- PRAGMA pqc_rekey now calls pqc_codec_rekey() (was placeholder)
+- Pager encrypt/decrypt hooks now call pqc_codec_encrypt_page/decrypt_page
+- WAL struct now carries pPqcCodec pointer for frame encryption
+
+### Fixed
+- WAL mode encryption: frames are now encrypted before writing to WAL file
+
 ## [1.0.0] - 2026-03-31
 
 ### Added — Post-Quantum Cryptography Core

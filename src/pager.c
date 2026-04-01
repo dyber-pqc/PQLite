@@ -7866,9 +7866,16 @@ int sqlite3PagerWalSystemErrno(Pager *pPager){
 /*
 ** PQLite: Attach a PQC encryption codec to a Pager.
 ** Called from the PRAGMA pqc_key handler after key derivation.
+** Also propagates the codec to the WAL if WAL mode is active.
 */
 void pqlitePagerSetCodec(Pager *pPager, void *pCodec){
   pPager->pPqcCodec = pCodec;
+#ifndef SQLITE_OMIT_WAL
+  if( pPager->pWal ){
+    extern void pqliteWalSetCodec(void*, void*);
+    pqliteWalSetCodec(pPager->pWal, pCodec);
+  }
+#endif
 }
 
 /*

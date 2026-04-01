@@ -544,25 +544,72 @@ void sqlite3Pragma(
     goto pragma_out;
   }
   if( sqlite3_stricmp(zLeft, "pqc_key")==0 ){
-    /* PRAGMA pqc_key='password'; — Set encryption key
-    ** This is the main entry point for database encryption.
-    ** Future implementation will:
-    ** 1. Derive master key from password via PBKDF2
-    ** 2. Create/load ML-KEM keypair
-    ** 3. Encapsulate/decapsulate to get shared secret
-    ** 4. Derive page keys via HKDF
-    ** 5. Attach codec to pager via pqlitePagerSetCodec()
+    /* PRAGMA pqc_key='password';
+    ** Main entry point for PQLite database encryption.
+    ** Derives master key from password via PBKDF2-HMAC-SHA-512,
+    ** generates/loads ML-KEM keypair, encapsulates to get shared secret,
+    ** derives page keys via HKDF-SHA-256, and attaches the encryption
+    ** codec to the pager for transparent page-level encryption.
     */
-    if( zRight ){
-      returnSingleText(v, "PQC key set (codec integration pending)");
-    }else{
-      returnSingleText(v, "PQC key not set");
+    extern void *pqc_codec_new(int, int);
+    extern int pqc_codec_init_new(void*, const char*, int);
+    extern void pqc_codec_free(void*);
+    extern void pqlitePagerSetCodec(Pager*, void*);
+    extern void *pqlitePagerGetCodec(Pager*);
+
+    if( zRight && pDb->pBt ){
+      Pager *pPager = sqlite3BtreePager(pDb->pBt);
+      void *pCodec = pqlitePagerGetCodec(pPager);
+
+      if( pCodec==0 ){
+        /* First time — create new codec and initialize with password */
+        int pageSize = sqlite3BtreeGetPageSize(pDb->pBt);
+        pCodec = pqc_codec_new(pageSize, /*PQC_KEM_ML_KEM_768*/ 1);
+        if( pCodec ){
+          int pqcRc = pqc_codec_init_new(pCodec, zRight, (int)strlen(zRight));
+          if( pqcRc==0 ){
+            pqlitePagerSetCodec(pPager, pCodec);
+            returnSingleText(v, "ok");
+          }else{
+            pqc_codec_free(pCodec);
+            returnSingleText(v, "error: key derivation failed");
+          }
+        }else{
+          returnSingleText(v, "error: codec allocation failed");
+        }
+      }else{
+        /* Codec already attached — key already set */
+        returnSingleText(v, "ok");
+      }
+    }else if( !zRight ){
+      /* Query: is a key set? */
+      if( pDb->pBt ){
+        Pager *pPager = sqlite3BtreePager(pDb->pBt);
+        void *pCodec = pqlitePagerGetCodec(pPager);
+        returnSingleText(v, pCodec ? "encrypted" : "not encrypted");
+      }else{
+        returnSingleText(v, "no database");
+      }
     }
     goto pragma_out;
   }
   if( sqlite3_stricmp(zLeft, "pqc_rekey")==0 ){
-    if( zRight ){
-      returnSingleText(v, "PQC rekey (codec integration pending)");
+    /* PRAGMA pqc_rekey='new_password';
+    ** Re-encrypt the database with a new password.
+    ** Requires that pqc_key was already set.
+    */
+    extern void *pqlitePagerGetCodec(Pager*);
+    extern int pqc_codec_rekey(void*, const char*, int);
+
+    if( zRight && pDb->pBt ){
+      Pager *pPager = sqlite3BtreePager(pDb->pBt);
+      void *pCodec = pqlitePagerGetCodec(pPager);
+      if( pCodec ){
+        int pqcRc = pqc_codec_rekey(pCodec, zRight, (int)strlen(zRight));
+        returnSingleText(v, pqcRc==0 ? "ok" : "error: rekey failed");
+      }else{
+        returnSingleText(v, "error: no encryption key set");
+      }
     }
     goto pragma_out;
   }

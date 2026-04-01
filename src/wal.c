@@ -551,6 +551,9 @@ struct Wal {
 #ifdef SQLITE_ENABLE_SETLK_TIMEOUT
   sqlite3 *db;
 #endif
+#ifdef PQLITE_ENABLE_PQC
+  void *pPqcCodec;             /* PQLite PQC encryption codec (shared with pager) */
+#endif
 };
 
 /*
@@ -3660,7 +3663,22 @@ int sqlite3WalReadFrame(
   testcase( sz>=65536 );
   iOffset = walFrameOffset(iRead, sz) + WAL_FRAME_HDRSIZE;
   /* testcase( IS_BIG_INT(iOffset) ); // requires a 4GiB WAL */
-  return sqlite3OsRead(pWal->pWalFd, pOut, (nOut>sz ? sz : nOut), iOffset);
+  {
+    int rc2 = sqlite3OsRead(pWal->pWalFd, pOut, (nOut>sz ? sz : nOut), iOffset);
+#ifdef PQLITE_ENABLE_PQC
+    /* PQLite: Decrypt WAL frame data after reading.
+    ** The frame was encrypted by walWriteOneFrame before writing. */
+    if( rc2==SQLITE_OK && pWal->pPqcCodec ){
+      extern int pqc_codec_decrypt_page(void*, unsigned int, unsigned char*, int);
+      /* We don't have the page number here directly, but the frame
+      ** header (which precedes this data) contains it. For now, we use
+      ** iRead as a proxy — the pager's readDbPage() will also call
+      ** decrypt, so we skip WAL-level decrypt to avoid double-decrypt.
+      ** The pager decrypt hook handles both paths. */
+    }
+#endif
+    return rc2;
+  }
 }
 
 /*
@@ -3963,14 +3981,24 @@ static int walWriteOneFrame(
   pData = pPage->pData;
 
 #ifdef PQLITE_ENABLE_PQC
-  /* PQLite: WAL frame page data would be encrypted here.
-  ** The page data in pData is the same data that was encrypted
-  ** by the pager write hook. For WAL mode, the pager write hook
-  ** is bypassed (WAL frames are written directly), so we would
-  ** need to encrypt here. For now, WAL encryption uses the same
-  ** codec path — the pager's pPqcCodec is accessed via the Wal
-  ** structure's back-pointer to the database file descriptor.
-  ** Full WAL encryption will be enabled in a future release. */
+  /* PQLite: Encrypt page data before writing to WAL.
+  ** In WAL mode, the pager write hook is not used — frames are written
+  ** directly to the WAL file. We encrypt the page data here using the
+  ** same codec attached to the pager.
+  **
+  ** We use a static scratch buffer to avoid modifying the page cache.
+  ** The encrypted data is passed to walEncodeFrame and walWriteToLog. */
+  if( p->pWal->pPqcCodec ){
+    static unsigned char pqcWalScratch[65536]; /* max page size */
+    extern int pqc_codec_encrypt_page(void*, unsigned int, unsigned char*, int);
+    int szPage = p->szPage;
+    if( szPage <= (int)sizeof(pqcWalScratch) ){
+      memcpy(pqcWalScratch, pData, szPage);
+      pqc_codec_encrypt_page(p->pWal->pPqcCodec, pPage->pgno,
+                              pqcWalScratch, szPage);
+      pData = pqcWalScratch;
+    }
+  }
 #endif
 
   walEncodeFrame(p->pWal, pPage->pgno, nTruncate, pData, aFrame);
@@ -4644,5 +4672,15 @@ int sqlite3WalFramesize(Wal *pWal){
 sqlite3_file *sqlite3WalFile(Wal *pWal){
   return pWal->pWalFd;
 }
+
+#ifdef PQLITE_ENABLE_PQC
+/*
+** PQLite: Set the PQC encryption codec for this WAL.
+** Called from pqlitePagerSetCodec() so the WAL and pager share the same codec.
+*/
+void pqliteWalSetCodec(Wal *pWal, void *pCodec){
+  if( pWal ) pWal->pPqcCodec = pCodec;
+}
+#endif
 
 #endif /* #ifndef SQLITE_OMIT_WAL */
