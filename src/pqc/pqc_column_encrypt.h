@@ -31,6 +31,7 @@
 
 #ifdef PQLITE_ENABLE_PQC
 
+#include "sqlite3.h"
 #include "pqc_common.h"
 #include "pqc_codec.h"
 #include <stdint.h>

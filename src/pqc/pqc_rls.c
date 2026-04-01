@@ -14,6 +14,7 @@
 #ifdef PQLITE_ENABLE_PQC
 
 #include "pqc_rls.h"
+#include "pqc_common.h"
 #include <string.h>
 #include <stdlib.h>
 
