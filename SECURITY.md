@@ -13,7 +13,7 @@
 If you discover a security vulnerability in PQLite, please report it
 responsibly:
 
-1. **Email**: security@dyber.io
+1. **Email**: security@dyber.org
 2. **Subject**: `[PQLite Security] <brief description>`
 3. **Do NOT** open a public GitHub issue for security vulnerabilities
 
