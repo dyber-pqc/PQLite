@@ -18,6 +18,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifndef _WIN32
+#include <sys/stat.h>
+#endif
+
 #ifdef _WIN32
 #include <windows.h>
 #include <dpapi.h>

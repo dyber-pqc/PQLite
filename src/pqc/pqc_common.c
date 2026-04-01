@@ -205,31 +205,17 @@ int pqc_kem_alg_from_name(const char *name){
   int i;
   if( name == NULL ) return -1;
   for(i = 0; i < PQC_KEM_COUNT; i++){
-    if( OQS_MEM_secure_bcmp == NULL ){
-      /* Fallback: simple case-insensitive compare */
+    {
       const char *a = kem_oqs_names[i];
       const char *b = name;
+      int match = 1;
       while( *a && *b ){
         char ca = (*a >= 'A' && *a <= 'Z') ? *a + 32 : *a;
         char cb = (*b >= 'A' && *b <= 'Z') ? *b + 32 : *b;
-        if( ca != cb ) break;
+        if( ca != cb ){ match = 0; break; }
         a++; b++;
       }
-      if( *a == 0 && *b == 0 ) return i;
-    }else{
-      /* Use liboqs-provided compare where available */
-      if( strlen(name) == strlen(kem_oqs_names[i]) ){
-        const char *a = kem_oqs_names[i];
-        const char *b = name;
-        int match = 1;
-        while( *a ){
-          char ca = (*a >= 'A' && *a <= 'Z') ? *a + 32 : *a;
-          char cb = (*b >= 'A' && *b <= 'Z') ? *b + 32 : *b;
-          if( ca != cb ){ match = 0; break; }
-          a++; b++;
-        }
-        if( match ) return i;
-      }
+      if( match && *a == 0 && *b == 0 ) return i;
     }
   }
   return -1;

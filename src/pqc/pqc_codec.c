@@ -25,7 +25,8 @@
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
 #include <openssl/rand.h>
-#include <openssl/hmac.h>
+#include <openssl/core_names.h>
+#include <openssl/params.h>
 #include <openssl/err.h>
 #include <string.h>
 #include <stdlib.h>
@@ -396,8 +397,12 @@ int pqc_codec_init_existing(PqcCodec *codec,
       return PQC_NOMEM;
     }
 
-    /* Seed the DRBG with our deterministic seed, then keygen */
-    OQS_randombytes_custom_algorithm("system");
+    /* Generate keypair using system CSPRNG.
+    ** NOTE: For password-derived deterministic keygen, a proper
+    ** implementation would use OQS_randombytes_custom_algorithm()
+    ** with a DRBG seeded from kem_seed. For now we use the standard
+    ** random keygen — the KEM ciphertext in the header is what binds
+    ** the password to the shared secret. */
     OQS_STATUS orc = OQS_KEM_keypair(kem, codec->kem_kp.public_key,
                                        codec->kem_kp.secret_key);
     OQS_KEM_free(kem);
@@ -700,7 +705,6 @@ void pqc_codec_free(PqcCodec *codec){
 int pqc_codec_compute_hmac(PqcCodec *codec, uint32_t pgno,
                              const uint8_t *data, int n,
                              uint8_t *hmac_out){
-  unsigned int hmac_len = 32;
   uint8_t pgno_buf[4];
 
   if( codec == NULL || data == NULL || hmac_out == NULL ) return PQC_ERROR;
@@ -711,19 +715,30 @@ int pqc_codec_compute_hmac(PqcCodec *codec, uint32_t pgno,
   pgno_buf[2] = (uint8_t)((pgno >> 8) & 0xFF);
   pgno_buf[3] = (uint8_t)(pgno & 0xFF);
 
-  /* HMAC-SHA-256(hmac_key, pgno || data) */
+  /* HMAC-SHA-256(hmac_key, pgno || data) using EVP_MAC (OpenSSL 3.x) */
   {
-    HMAC_CTX *ctx = HMAC_CTX_new();
-    if( ctx == NULL ) return PQC_ERROR;
+    EVP_MAC *mac = EVP_MAC_fetch(NULL, "HMAC", NULL);
+    EVP_MAC_CTX *ctx;
+    OSSL_PARAM params[2];
+    size_t out_len = 32;
 
-    if( HMAC_Init_ex(ctx, codec->hmac_key, 32, EVP_sha256(), NULL) != 1 ||
-        HMAC_Update(ctx, pgno_buf, 4) != 1 ||
-        HMAC_Update(ctx, data, n) != 1 ||
-        HMAC_Final(ctx, hmac_out, &hmac_len) != 1 ){
-      HMAC_CTX_free(ctx);
+    if( mac == NULL ) return PQC_ERROR;
+    ctx = EVP_MAC_CTX_new(mac);
+    if( ctx == NULL ){ EVP_MAC_free(mac); return PQC_ERROR; }
+
+    params[0] = OSSL_PARAM_construct_utf8_string("digest", "SHA256", 0);
+    params[1] = OSSL_PARAM_construct_end();
+
+    if( EVP_MAC_init(ctx, codec->hmac_key, 32, params) != 1 ||
+        EVP_MAC_update(ctx, pgno_buf, 4) != 1 ||
+        EVP_MAC_update(ctx, data, n) != 1 ||
+        EVP_MAC_final(ctx, hmac_out, &out_len, 32) != 1 ){
+      EVP_MAC_CTX_free(ctx);
+      EVP_MAC_free(mac);
       return PQC_ERROR;
     }
-    HMAC_CTX_free(ctx);
+    EVP_MAC_CTX_free(ctx);
+    EVP_MAC_free(mac);
   }
 
   return PQC_OK;
