@@ -47,7 +47,7 @@ jobs:
 
       - name: Generate SQLite amalgamation
         run: |
-          # Use SQLite's own build system to produce sqlite3.c + sqlite3.h + shell.c
+          chmod +x configure
           ./configure
           make sqlite3.c
           make shell.c

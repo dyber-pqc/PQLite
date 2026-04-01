@@ -63,6 +63,7 @@ jobs:
 
       - name: Generate SQLite amalgamation
         run: |
+          chmod +x configure
           ./configure
           make sqlite3.c
           make shell.c
