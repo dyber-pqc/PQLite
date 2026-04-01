@@ -3989,23 +3989,35 @@ static int walWriteOneFrame(
   ** We use a static scratch buffer to avoid modifying the page cache.
   ** The encrypted data is passed to walEncodeFrame and walWriteToLog. */
   if( p->pWal->pPqcCodec ){
-    static unsigned char pqcWalScratch[65536]; /* max page size */
     extern int pqc_codec_encrypt_page(void*, unsigned int, unsigned char*, int);
+    /* Use the page's own data copy since walWriteToLog doesn't modify it.
+    ** We encrypt into a temporary buffer allocated on the stack for
+    ** typical page sizes, or heap for larger pages. */
     int szPage = p->szPage;
-    if( szPage <= (int)sizeof(pqcWalScratch) ){
-      memcpy(pqcWalScratch, pData, szPage);
-      pqc_codec_encrypt_page(p->pWal->pPqcCodec, pPage->pgno,
-                              pqcWalScratch, szPage);
-      pData = pqcWalScratch;
+    unsigned char *pEnc = (unsigned char*)sqlite3_malloc(szPage);
+    if( pEnc ){
+      memcpy(pEnc, pData, szPage);
+      pqc_codec_encrypt_page(p->pWal->pPqcCodec, pPage->pgno, pEnc, szPage);
+      pData = pEnc;
     }
+    /* Note: pEnc is freed after walWriteToLog below */
   }
 #endif
 
   walEncodeFrame(p->pWal, pPage->pgno, nTruncate, pData, aFrame);
   rc = walWriteToLog(p, aFrame, sizeof(aFrame), iOffset);
-  if( rc ) return rc;
-  /* Write the page data */
-  rc = walWriteToLog(p, pData, p->szPage, iOffset+sizeof(aFrame));
+  if( rc==SQLITE_OK ){
+    /* Write the page data */
+    rc = walWriteToLog(p, pData, p->szPage, iOffset+sizeof(aFrame));
+  }
+
+#ifdef PQLITE_ENABLE_PQC
+  /* Free the encrypted page buffer if we allocated one */
+  if( pData != pPage->pData ){
+    sqlite3_free(pData);
+  }
+#endif
+
   return rc;
 }
 

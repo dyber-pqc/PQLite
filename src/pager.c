@@ -7872,7 +7872,7 @@ void pqlitePagerSetCodec(Pager *pPager, void *pCodec){
   pPager->pPqcCodec = pCodec;
 #ifndef SQLITE_OMIT_WAL
   if( pPager->pWal ){
-    extern void pqliteWalSetCodec(void*, void*);
+    extern void pqliteWalSetCodec(Wal*, void*);
     pqliteWalSetCodec(pPager->pWal, pCodec);
   }
 #endif
