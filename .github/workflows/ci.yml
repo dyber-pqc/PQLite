@@ -71,6 +71,15 @@ jobs:
           echo "SELECT 'PQLite works!';" | ./build/pqlite3 :memory:
           ./build/pqlite3 :memory: ".version"
 
+      - name: PQC integration test
+        if: matrix.pqc == 'ON'
+        run: |
+          echo "PRAGMA pqc_version;" | ./build/pqlite3 :memory:
+          echo "PRAGMA pqc_algorithm;" | ./build/pqlite3 :memory:
+          echo "PRAGMA pqc_cipher;" | ./build/pqlite3 :memory:
+          echo "SELECT pqc_version();" | ./build/pqlite3 :memory:
+          echo "SELECT pqc_algorithm_info('ml-kem-768');" | ./build/pqlite3 :memory:
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

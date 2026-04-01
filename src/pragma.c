@@ -510,6 +510,64 @@ void sqlite3Pragma(
     goto pragma_out;
   }
 
+#ifdef PQLITE_ENABLE_PQC
+  /*
+  ** PQLite PQC Pragma Handling
+  ** Copyright (c) 2025-2026 Dyber, Inc.
+  **
+  ** These pragmas are handled before the standard pragma lookup because
+  ** they are not registered in the auto-generated pragma table.
+  */
+  if( sqlite3_stricmp(zLeft, "pqc_version")==0 ){
+    /* PRAGMA pqc_version; — Return the PQLite version string */
+    extern const char *pqc_version(void);
+    returnSingleText(v, pqc_version());
+    goto pragma_out;
+  }
+  if( sqlite3_stricmp(zLeft, "pqc_status")==0 ){
+    /* PRAGMA pqc_status; — Return encryption status */
+    returnSingleText(v, "PQLite PQC: enabled (compile-time)");
+    goto pragma_out;
+  }
+  if( sqlite3_stricmp(zLeft, "pqc_algorithm")==0 ){
+    /* PRAGMA pqc_algorithm; — Return default KEM algorithm */
+    if( zRight ){
+      /* Set algorithm — for now just acknowledge */
+      returnSingleText(v, zRight);
+    }else{
+      returnSingleText(v, "ml-kem-768");
+    }
+    goto pragma_out;
+  }
+  if( sqlite3_stricmp(zLeft, "pqc_cipher")==0 ){
+    returnSingleText(v, "aes-256-gcm");
+    goto pragma_out;
+  }
+  if( sqlite3_stricmp(zLeft, "pqc_key")==0 ){
+    /* PRAGMA pqc_key='password'; — Set encryption key
+    ** This is the main entry point for database encryption.
+    ** Future implementation will:
+    ** 1. Derive master key from password via PBKDF2
+    ** 2. Create/load ML-KEM keypair
+    ** 3. Encapsulate/decapsulate to get shared secret
+    ** 4. Derive page keys via HKDF
+    ** 5. Attach codec to pager via pqlitePagerSetCodec()
+    */
+    if( zRight ){
+      returnSingleText(v, "PQC key set (codec integration pending)");
+    }else{
+      returnSingleText(v, "PQC key not set");
+    }
+    goto pragma_out;
+  }
+  if( sqlite3_stricmp(zLeft, "pqc_rekey")==0 ){
+    if( zRight ){
+      returnSingleText(v, "PQC rekey (codec integration pending)");
+    }
+    goto pragma_out;
+  }
+#endif /* PQLITE_ENABLE_PQC */
+
   /* Locate the pragma in the lookup table */
   pPragma = pragmaLocate(zLeft);
   if( pPragma==0 ){

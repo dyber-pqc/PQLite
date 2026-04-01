@@ -16,6 +16,11 @@
 */
 #include "sqliteInt.h"
 
+#ifdef PQLITE_ENABLE_PQC
+# include "pqc/pqc_common.h"
+# include "pqc/pqc_sql_funcs.h"
+#endif
+
 #ifdef SQLITE_ENABLE_FTS3
 # include "fts3.h"
 #endif
@@ -285,6 +290,9 @@ int sqlite3_initialize(void){
 #endif
     memset(&sqlite3BuiltinFunctions, 0, sizeof(sqlite3BuiltinFunctions));
     sqlite3RegisterBuiltinFunctions();
+#ifdef PQLITE_ENABLE_PQC
+    pqc_init();
+#endif
     if( sqlite3GlobalConfig.isPCacheInit==0 ){
       rc = sqlite3PcacheInitialize();
     }
@@ -3609,6 +3617,9 @@ static int openDatabase(
   */
   sqlite3Error(db, SQLITE_OK);
   sqlite3RegisterPerConnectionBuiltinFunctions(db);
+#ifdef PQLITE_ENABLE_PQC
+  pqc_register_sql_functions(db);
+#endif
   rc = sqlite3_errcode(db);
 
 

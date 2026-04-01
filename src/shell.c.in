@@ -11975,6 +11975,40 @@ static int do_meta_command(const char *zLine, ShellState *p){
   }else
 #endif
 
+#ifdef PQLITE_ENABLE_PQC
+  if( c=='p' && cli_strncmp(azArg[0], "pqc_version", n)==0 ){
+    /* .pqc_version — Show PQLite PQC version */
+    sqlite3_stmt *pStmt = 0;
+    sqlite3_prepare_v2(p->db, "PRAGMA pqc_version", -1, &pStmt, 0);
+    if( pStmt && sqlite3_step(pStmt)==SQLITE_ROW ){
+      cli_printf(p->out, "%s\n", sqlite3_column_text(pStmt, 0));
+    }
+    sqlite3_finalize(pStmt);
+  }else
+
+  if( c=='p' && cli_strncmp(azArg[0], "pqc_status", n)==0 ){
+    /* .pqc_status — Show encryption status */
+    sqlite3_stmt *pStmt = 0;
+    cli_printf(p->out, "PQLite Post-Quantum Encryption Status\n");
+    cli_printf(p->out, "=====================================\n");
+    sqlite3_prepare_v2(p->db, "PRAGMA pqc_version", -1, &pStmt, 0);
+    if( pStmt && sqlite3_step(pStmt)==SQLITE_ROW ){
+      cli_printf(p->out, "Version:   %s\n", sqlite3_column_text(pStmt, 0));
+    }
+    sqlite3_finalize(pStmt);
+    sqlite3_prepare_v2(p->db, "PRAGMA pqc_algorithm", -1, &pStmt, 0);
+    if( pStmt && sqlite3_step(pStmt)==SQLITE_ROW ){
+      cli_printf(p->out, "Algorithm: %s\n", sqlite3_column_text(pStmt, 0));
+    }
+    sqlite3_finalize(pStmt);
+    sqlite3_prepare_v2(p->db, "PRAGMA pqc_cipher", -1, &pStmt, 0);
+    if( pStmt && sqlite3_step(pStmt)==SQLITE_ROW ){
+      cli_printf(p->out, "Cipher:    %s\n", sqlite3_column_text(pStmt, 0));
+    }
+    sqlite3_finalize(pStmt);
+  }else
+#endif /* PQLITE_ENABLE_PQC */
+
   if( c=='v' && cli_strncmp(azArg[0], "version", n)==0 ){
     char *zPtrSz = sizeof(void*)==8 ? "64-bit" : "32-bit";
     cli_printf(p->out, "PQLite 1.0.0 (based on SQLite %s) %s\n" /*extra-version-info*/,

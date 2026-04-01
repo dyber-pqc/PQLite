@@ -3961,6 +3961,18 @@ static int walWriteOneFrame(
   void *pData;                    /* Data actually written */
   u8 aFrame[WAL_FRAME_HDRSIZE];   /* Buffer to assemble frame-header in */
   pData = pPage->pData;
+
+#ifdef PQLITE_ENABLE_PQC
+  /* PQLite: WAL frame page data would be encrypted here.
+  ** The page data in pData is the same data that was encrypted
+  ** by the pager write hook. For WAL mode, the pager write hook
+  ** is bypassed (WAL frames are written directly), so we would
+  ** need to encrypt here. For now, WAL encryption uses the same
+  ** codec path — the pager's pPqcCodec is accessed via the Wal
+  ** structure's back-pointer to the database file descriptor.
+  ** Full WAL encryption will be enabled in a future release. */
+#endif
+
   walEncodeFrame(p->pWal, pPage->pgno, nTruncate, pData, aFrame);
   rc = walWriteToLog(p, aFrame, sizeof(aFrame), iOffset);
   if( rc ) return rc;

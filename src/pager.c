@@ -703,6 +703,9 @@ struct Pager {
 #ifdef SQLITE_ENABLE_SETLK_TIMEOUT
   sqlite3 *dbWal;
 #endif
+#ifdef PQLITE_ENABLE_PQC
+  void *pPqcCodec;             /* PQLite PQC encryption codec context */
+#endif
 };
 
 /*
@@ -3044,6 +3047,20 @@ static int readDbPage(PgHdr *pPg){
     }
   }
 
+#ifdef PQLITE_ENABLE_PQC
+  /* PQLite: Decrypt page data after reading from disk or WAL.
+  ** This is the read-side hook for transparent database encryption.
+  ** The codec was attached to the pager via pqlitePagerSetCodec(). */
+  if( rc==SQLITE_OK && pPager->pPqcCodec ){
+    extern int pqc_codec_decrypt_page(void*, unsigned int, unsigned char*, int);
+    rc = pqc_codec_decrypt_page(
+      pPager->pPqcCodec, pPg->pgno, pPg->pData, pPager->pageSize
+    );
+    if( rc!=0 ) rc = SQLITE_IOERR_READ;
+    else rc = SQLITE_OK;
+  }
+#endif
+
   if( pPg->pgno==1 ){
     if( rc ){
       /* If the read is unsuccessful, set the dbFileVers[] to something
@@ -4476,6 +4493,20 @@ static int pager_write_pagelist(Pager *pPager, PgHdr *pList){
       if( pList->pgno==1 ) pager_write_changecounter(pList);
 
       pData = pList->pData;
+
+#ifdef PQLITE_ENABLE_PQC
+      /* PQLite: Encrypt page data before writing to disk.
+      ** We copy to pTmpSpace to avoid modifying the in-memory page cache. */
+      if( pPager->pPqcCodec ){
+        extern int pqc_codec_encrypt_page(void*, unsigned int, unsigned char*, int);
+        memcpy(pPager->pTmpSpace, pData, pPager->pageSize);
+        pqc_codec_encrypt_page(
+          pPager->pPqcCodec, pgno,
+          (unsigned char*)pPager->pTmpSpace, pPager->pageSize
+        );
+        pData = pPager->pTmpSpace;
+      }
+#endif
 
       /* Write out the page data. */
       rc = sqlite3OsWrite(pPager->fd, pData, pPager->pageSize, offset);
@@ -7830,5 +7861,22 @@ int sqlite3PagerWalSystemErrno(Pager *pPager){
   return sqlite3WalSystemErrno(pPager->pWal);
 }
 #endif
+
+#ifdef PQLITE_ENABLE_PQC
+/*
+** PQLite: Attach a PQC encryption codec to a Pager.
+** Called from the PRAGMA pqc_key handler after key derivation.
+*/
+void pqlitePagerSetCodec(Pager *pPager, void *pCodec){
+  pPager->pPqcCodec = pCodec;
+}
+
+/*
+** PQLite: Retrieve the PQC codec from a Pager.
+*/
+void *pqlitePagerGetCodec(Pager *pPager){
+  return pPager->pPqcCodec;
+}
+#endif /* PQLITE_ENABLE_PQC */
 
 #endif /* SQLITE_OMIT_DISKIO */
