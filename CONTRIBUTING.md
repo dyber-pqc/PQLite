@@ -27,7 +27,7 @@ Thank you for your interest in contributing to **PQLite**, a product of **Dyber,
 ### Security
 - Never commit secrets, keys, or credentials
 - Crypto PRs require review by a maintainer with crypto background
-- Report vulnerabilities privately: security@dyber.io
+- Report vulnerabilities privately: security@dyber.org
 
 ## Copyright
 
