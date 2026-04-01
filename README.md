@@ -86,16 +86,43 @@ PQLite is the SQLite companion to [**fortressQL**](https://github.com/dyber-pqc/
 
 ---
 
+## Installation
+
+### Ubuntu / Debian (.deb)
+```bash
+# Download the .deb from the latest release
+wget https://github.com/dyber-pqc/PQLite/releases/latest/download/pqlite3_1.0.0_amd64.deb
+sudo dpkg -i pqlite3_1.0.0_amd64.deb
+```
+
+### macOS (Homebrew)
+```bash
+brew tap dyber-pqc/tap
+brew install pqlite
+```
+
+### Docker
+```bash
+docker pull ghcr.io/dyber-pqc/pqlite:latest
+docker run -it -v $(pwd):/data ghcr.io/dyber-pqc/pqlite /data/mydb.db
+```
+
+### Pre-built binaries
+Download from [GitHub Releases](https://github.com/dyber-pqc/PQLite/releases):
+- `pqlite3-linux-x86_64` -- Linux (x86_64)
+- `pqlite3-macos-arm64` -- macOS (Apple Silicon)
+
+### Build from source
+```bash
+git clone https://github.com/dyber-pqc/PQLite.git
+cd PQLite
+./configure && make sqlite3.c && make shell.c   # Generate amalgamation
+cmake -B build -DPQLITE_PQC=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+
 ## Quick Start
 
 ```bash
-# Clone and build
-git clone https://github.com/dyber-pqc/PQLite.git
-cd PQLite
-mkdir build && cd build
-cmake .. -DPQLITE_PQC=ON -DCMAKE_BUILD_TYPE=Release
-cmake --build .
-
 # Create an encrypted database
 ./pqlite3 secure.db
 pqlite> PRAGMA pqc_key='my-quantum-safe-password';

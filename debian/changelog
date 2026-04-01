@@ -1,0 +1,11 @@
+pqlite3 (1.0.0-1) unstable; urgency=medium
+
+  * Initial release of PQLite - Post-Quantum SQLite
+  * ML-KEM-768 key encapsulation (FIPS 203) via liboqs
+  * AES-256-GCM transparent page encryption
+  * ML-DSA-65 digital signatures (FIPS 204)
+  * Column-level encryption, audit logging, data masking
+  * Row-level security, FIPS 140-3 mode, encrypted backups
+  * Based on SQLite 3.53.0
+
+ -- Dyber, Inc. <engineering@dyber.io>  Mon, 31 Mar 2026 00:00:00 +0000

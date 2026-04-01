@@ -1,0 +1,11 @@
+build/
+.git/
+.github/
+.claude/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+.DS_Store
+Thumbs.db

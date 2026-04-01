@@ -1,0 +1,54 @@
+Source: pqlite3
+Section: database
+Priority: optional
+Maintainer: Dyber, Inc. <engineering@dyber.io>
+Build-Depends: debhelper-compat (= 13),
+               cmake (>= 3.16),
+               ninja-build,
+               libssl-dev (>= 3.0),
+               liboqs-dev (>= 0.9),
+               pkg-config,
+               tcl
+Standards-Version: 4.6.2
+Homepage: https://github.com/dyber-pqc/PQLite
+Vcs-Git: https://github.com/dyber-pqc/PQLite.git
+Vcs-Browser: https://github.com/dyber-pqc/PQLite
+Rules-Requires-Root: no
+
+Package: pqlite3
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Post-Quantum SQLite - command-line interface
+ PQLite is a fork of SQLite that adds NIST-standardized post-quantum
+ cryptographic (PQC) protection. Features ML-KEM key encapsulation
+ (FIPS 203), AES-256-GCM page encryption, ML-DSA digital signatures
+ (FIPS 204), column-level encryption, cryptographic audit logging,
+ and FIPS 140-3 compliance mode.
+ .
+ This package contains the pqlite3 command-line shell.
+ .
+ PQLite is a product of Dyber, Inc.
+
+Package: libpqlite3-0
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Post-Quantum SQLite - shared library
+ PQLite is a fork of SQLite that adds NIST-standardized post-quantum
+ cryptographic (PQC) protection using ML-KEM (FIPS 203), ML-DSA
+ (FIPS 204), and AES-256-GCM encryption.
+ .
+ This package contains the shared library.
+
+Package: libpqlite3-dev
+Architecture: any
+Multi-Arch: same
+Section: libdevel
+Depends: libpqlite3-0 (= ${binary:Version}), ${misc:Depends}
+Description: Post-Quantum SQLite - development files
+ PQLite is a fork of SQLite that adds NIST-standardized post-quantum
+ cryptographic (PQC) protection.
+ .
+ This package contains the header files and static library for
+ developing applications that use PQLite.

@@ -1,0 +1,132 @@
+# PQLite Package Publishing
+# Copyright (c) 2025-2026 Dyber, Inc.
+#
+# Builds and publishes:
+#   - Docker image to GitHub Container Registry (ghcr.io)
+#   - .deb package as release artifact
+
+name: Packages
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ============================================================
+  # Docker image → ghcr.io/dyber-pqc/pqlite
+  # ============================================================
+  docker:
+    name: Docker Image
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building Docker image version: $VERSION"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/dyber-pqc/pqlite:${{ steps.version.outputs.version }}
+            ghcr.io/dyber-pqc/pqlite:latest
+
+  # ============================================================
+  # .deb package
+  # ============================================================
+  deb:
+    name: Debian Package
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libssl-dev \
+            pkg-config tcl tclsh debhelper devscripts
+          # Install liboqs
+          git clone --depth 1 --branch 0.12.0 https://github.com/open-quantum-safe/liboqs.git /tmp/liboqs
+          cmake -S /tmp/liboqs -B /tmp/liboqs/build -GNinja \
+            -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON \
+            -DOQS_BUILD_ONLY_LIB=ON
+          ninja -C /tmp/liboqs/build
+          sudo ninja -C /tmp/liboqs/build install
+          sudo ldconfig
+
+      - name: Generate amalgamation
+        run: |
+          chmod +x configure autosetup/autosetup-find-tclsh autosetup/autosetup \
+            autosetup/autosetup-test-tclsh autosetup/autosetup-config.guess \
+            autosetup/autosetup-config.sub 2>/dev/null || true
+          ./configure
+          make sqlite3.c
+          make shell.c
+
+      - name: Build .deb package
+        run: |
+          # Build using CMake directly (simpler than dpkg-buildpackage for CI)
+          cmake -S . -B build -GNinja \
+            -DPQLITE_PQC=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build
+
+          # Create .deb manually using fpm if available, or package by hand
+          VERSION=${GITHUB_REF_NAME#v}
+          PKGDIR=$(pwd)/pkg
+          mkdir -p $PKGDIR/usr/bin $PKGDIR/usr/lib $PKGDIR/usr/include \
+                   $PKGDIR/DEBIAN
+
+          cp build/pqlite3 $PKGDIR/usr/bin/
+          cp build/libpqlite3.a $PKGDIR/usr/lib/ 2>/dev/null || true
+          cp sqlite3.h $PKGDIR/usr/include/pqlite3.h 2>/dev/null || true
+
+          cat > $PKGDIR/DEBIAN/control <<EOF
+          Package: pqlite3
+          Version: ${VERSION}
+          Section: database
+          Priority: optional
+          Architecture: amd64
+          Depends: libssl3, liboqs0
+          Maintainer: Dyber, Inc. <engineering@dyber.io>
+          Description: Post-Quantum SQLite - Quantum-resistant database encryption
+           PQLite is a fork of SQLite with NIST PQC protection (FIPS 203/204/205).
+           ML-KEM key encapsulation, AES-256-GCM encryption, ML-DSA signatures.
+           A product of Dyber, Inc.
+          EOF
+
+          # Remove leading whitespace from control file
+          sed -i 's/^          //' $PKGDIR/DEBIAN/control
+
+          dpkg-deb --build $PKGDIR pqlite3_${VERSION}_amd64.deb
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: pqlite3-deb
+          path: "*.deb"
+
+      - name: Attach .deb to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.deb"
