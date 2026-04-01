@@ -88,9 +88,16 @@ PQLite is the SQLite companion to [**fortressQL**](https://github.com/dyber-pqc/
 
 ## Installation
 
-### Ubuntu / Debian (.deb)
+### Ubuntu / Debian (PPA)
 ```bash
-# Download the .deb from the latest release
+sudo add-apt-repository ppa:dyber/pqlite
+sudo apt update
+sudo apt install pqlite3
+```
+
+### Ubuntu / Debian (.deb download)
+```bash
+# Or download the .deb directly from the latest release
 wget https://github.com/dyber-pqc/PQLite/releases/latest/download/pqlite3_1.0.0_amd64.deb
 sudo dpkg -i pqlite3_1.0.0_amd64.deb
 ```
@@ -336,6 +343,9 @@ PQLite/
 ## See Also
 
 - [**fortressQL**](https://github.com/dyber-pqc/fortressQL) -- Dyber's PQC-hardened PostgreSQL fork
+- [PQLite on Launchpad](https://launchpad.net/pqlite) -- Ubuntu PPA and project tracking
+- [PQLite PPA](https://launchpad.net/~dyber/+archive/ubuntu/pqlite) -- `ppa:dyber/pqlite`
+- [PQLite Docker Image](https://github.com/dyber-pqc/PQLite/pkgs/container/pqlite) -- `ghcr.io/dyber-pqc/pqlite`
 - [NIST PQC Standards](https://csrc.nist.gov/projects/post-quantum-cryptography) -- FIPS 203, 204, 205
 - [liboqs](https://github.com/open-quantum-safe/liboqs) -- Open Quantum Safe library
 - [SQLite](https://sqlite.org/) -- The original SQLite project
