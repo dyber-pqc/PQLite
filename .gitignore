@@ -70,6 +70,25 @@ Desktop.ini
 $RECYCLE.BIN/
 
 # =========================
+# Rust build artifacts
+# =========================
+target/
+Cargo.lock
+!bindings/rust/*/Cargo.lock
+
+# =========================
+# Node.js
+# =========================
+node_modules/
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.egg-info/
+dist/
+
+# =========================
 # Claude Code (NEVER commit)
 # =========================
 .claude/
