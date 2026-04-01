@@ -10,5 +10,7 @@ documentation = "https://docs.rs/pqlite"
 keywords = ["sqlite", "pqc", "post-quantum", "encryption", "database"]
 categories = ["database", "cryptography"]
 
+readme = "README.md"
+
 [dependencies]
 libpqlite3-sys = { path = "../libpqlite3-sys", version = "1.1.0" }

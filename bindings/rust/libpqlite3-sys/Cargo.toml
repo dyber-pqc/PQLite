@@ -11,6 +11,8 @@ keywords = ["sqlite", "pqc", "post-quantum", "encryption", "database"]
 categories = ["database", "cryptography", "external-ffi-bindings"]
 links = "pqlite3"
 build = "build.rs"
+readme = "README.md"
+exclude = ["../../../*"]
 
 [build-dependencies]
 cc = "1"
