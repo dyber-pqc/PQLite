@@ -23,7 +23,7 @@ Examples of unacceptable behavior:
 ## Enforcement
 
 Instances of unacceptable behavior may be reported to the project maintainers
-at conduct@dyber.io. All complaints will be reviewed and investigated.
+at conduct@dyber.org. All complaints will be reviewed and investigated.
 
 ## Attribution
 
