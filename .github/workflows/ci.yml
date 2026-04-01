@@ -59,7 +59,9 @@ jobs:
         run: |
           cmake -S . -B build -GNinja \
             -DPQLITE_PQC=${{ matrix.pqc }} \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_RPATH="/usr/local/lib" \
+            -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON
 
       - name: Build PQLite
         run: cmake --build build
