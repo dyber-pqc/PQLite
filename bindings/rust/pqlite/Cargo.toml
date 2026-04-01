@@ -13,4 +13,4 @@ categories = ["database", "cryptography"]
 readme = "README.md"
 
 [dependencies]
-libpqlite3-sys = { path = "../libpqlite3-sys", version = "1.1.0" }
+libpqlite3-sys = "1.1.0"
